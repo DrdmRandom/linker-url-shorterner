@@ -1,0 +1,13 @@
+Linker — URL shortener + QR code generator
+{{- if .Values.ingress.enabled }}
+  {{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ range .paths }}{{ .path }}{{ end }}
+  {{- end }}
+{{- else }}
+  kubectl port-forward svc/{{ include "linker.fullname" . }} 8080:{{ .Values.service.port }}
+  then open http://localhost:8080
+{{- end }}
+
+Check health:
+  kubectl run --rm -it --restart=Never test-$RANDOM --image=curlimages/curl -- \
+    curl http://{{ include "linker.fullname" . }}:{{ .Values.service.port }}/api/healthz

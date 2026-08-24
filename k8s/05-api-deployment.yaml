@@ -1,0 +1,126 @@
+# The API Deployment — the heart of this learning project.
+#
+# It demonstrates the three Kubernetes probes and how they map to the
+# Go endpoints in backend/handlers.go:
+#
+#   startupProbe   → GET /api/readyz   "has the app started OK?"
+#   readinessProbe → GET /api/readyz   "can it serve traffic NOW?"
+#   livenessProbe  → GET /api/healthz  "is the process alive?"
+#
+# Probe mechanics worth knowing:
+#   periodSeconds    how often kubelet checks
+#   failureThreshold N consecutive failures = probe fails
+#   startupProbe runs FIRST and blocks the other two until it succeeds.
+#   It covers slow startups (here: waiting for Postgres) without
+#   forcing a huge initialDelaySeconds on liveness.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: url-shortener-api
+  namespace: url-shortener
+  labels:
+    app: url-shortener-api
+spec:
+  replicas: 2                  # stateless app → 2 replicas is safe and
+                               # lets you see the Service load-balance
+  selector:
+    matchLabels:
+      app: url-shortener-api
+  template:
+    metadata:
+      labels:
+        app: url-shortener-api
+    spec:
+      # Pod-level hardening (Pod Security standards "restricted"-ish).
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          # ⚠️ Replace REGISTRY_HOST with your registry, and the tag
+          # with the one CI pushed (short commit SHA, or "latest").
+          # Example: registry.example.internal:5000/url-shortener:abc1234
+          image: REGISTRY_HOST/url-shortener:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          # Non-secret config from the ConfigMap (04).
+          envFrom:
+            - configMapRef:
+                name: url-shortener-api
+          # Credentials from the Secret (01) — same values Postgres uses.
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: url-shortener-postgres
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: url-shortener-postgres
+                  key: POSTGRES_PASSWORD
+            # Google SSO credentials from the Secret (04b).
+            # optional: true → the pod still starts if the Secret was
+            # never applied; the app then runs without the sign-in
+            # button instead of failing with CreateContainerConfigError.
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: url-shortener-google-auth
+                  key: GOOGLE_CLIENT_ID
+                  optional: true
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: url-shortener-google-auth
+                  key: GOOGLE_CLIENT_SECRET
+                  optional: true
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: url-shortener-google-auth
+                  key: SESSION_SECRET
+                  optional: true
+          # ---- Probe 1: startup -----------------------------------
+          # 30 tries x 2s = up to 60s to connect to Postgres before the
+          # pod is declared failed. Covers "DB still booting".
+          startupProbe:
+            httpGet:
+              path: /api/readyz
+              port: 8080
+            periodSeconds: 2
+            failureThreshold: 30
+          # ---- Probe 2: readiness ----------------------------------
+          # Fails → pod removed from Service endpoints (no traffic),
+          # kept running, re-checked until healthy.
+          readinessProbe:
+            httpGet:
+              path: /api/readyz
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 3
+          # ---- Probe 3: liveness ------------------------------------
+          # Fails → kubelet RESTARTS the container. So it only checks
+          # the process itself, never the DB (see handlers.go comment).
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          # Container-level hardening.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true   # the Go binary needs no writes
+            capabilities:
+              drop: ["ALL"]

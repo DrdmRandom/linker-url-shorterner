@@ -1,0 +1,10 @@
+# Namespaces isolate workloads inside a cluster (like folders).
+# Everything for this project lives in its own namespace so it is
+# easy to inspect (`kubectl get all -n url-shortener`) and to delete
+# as one unit when you are done practicing.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: url-shortener
+  labels:
+    app.kubernetes.io/part-of: url-shortener

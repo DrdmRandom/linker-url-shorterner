@@ -1,0 +1,65 @@
+# =====================================================================
+# LOCAL TESTING ONLY — run the whole app on your laptop.
+#
+#   docker compose up --build     start everything
+#   docker compose logs -f app    watch the app logs
+#   docker compose down           stop (keeps the database volume)
+#   docker compose down -v        stop AND wipe the database
+#
+# This is NOT the production path. Kubernetes deployment uses the
+# manifests in k8s/ — see DEPLOY.md.
+# =====================================================================
+
+name: url-shortener
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shortener-pg
+    environment:
+      # Dev-only credentials. Never reuse these anywhere real.
+      POSTGRES_USER: shortener
+      POSTGRES_PASSWORD: dev-password
+      POSTGRES_DB: shortener
+    # The healthcheck is what `depends_on: condition: service_healthy`
+    # waits for — the app container starts only once Postgres accepts
+    # connections. (Same idea as a Kubernetes readiness probe.)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shortener -d shortener"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # data survives `compose down`
+    # Postgres is reachable ONLY by the app, on the internal compose
+    # network — not from your laptop. Good default for databases.
+    # To inspect it from the host, uncomment:
+    # ports:
+    #   - "5432:5432"
+
+  app:
+    build: .              # builds the Dockerfile in this directory
+    container_name: shortener-app
+    ports:
+      - "8080:8080"       # laptop:8080 → container:8080
+    environment:
+      PORT: "8080"
+      POSTGRES_HOST: postgres     # compose DNS: service name resolves
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: shortener
+      POSTGRES_PASSWORD: dev-password
+      POSTGRES_DB: shortener
+      # --- Google SSO (optional) ------------------------------------
+      # Copy .env.example to .env and fill in your credentials.
+      # Compose reads .env automatically. Leave empty and the app
+      # simply runs without the sign-in button.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SESSION_SECRET: ${SESSION_SECRET:-insecure-dev-secret}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

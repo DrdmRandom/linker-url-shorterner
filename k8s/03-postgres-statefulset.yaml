@@ -1,0 +1,77 @@
+# Postgres runs as a StatefulSet, not a Deployment.
+#
+# Why? Databases are stateful and identity-sensitive:
+#   - volumeClaimTemplates gives the pod a PersistentVolumeClaim that
+#     SURVIVES pod restarts and rescheduling (your data stays).
+#   - The pod gets a stable network identity (postgres-0).
+#
+# A Deployment + ReadWriteOnce PVC would break the moment you scale
+# past 1 replica or the pod moves to another node.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: url-shortener
+spec:
+  serviceName: postgres        # must match the Service from 02
+  replicas: 1                  # one writer; do not scale a single-node PG
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          # envFrom injects every key of the Secret as env vars:
+          # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB are the
+          # official postgres image's init variables.
+          envFrom:
+            - secretRef:
+                name: url-shortener-postgres
+          env:
+            # Put the data directory on the volume, not the container fs.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          # Readiness: pg_isready answers "accepting connections?".
+          # Until it passes, the Service sends no traffic here.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "shortener", "-d", "shortener"]
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Liveness: if Postgres hangs completely, restart it.
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "shortener", "-d", "shortener"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  # The PVC is created automatically per pod and, importantly, is NOT
+  # deleted when the pod is. Data outlives restarts.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

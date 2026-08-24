@@ -1,0 +1,29 @@
+# ⚠️ EXAMPLE FILE — optional, apply only when your cluster has an
+# Ingress controller (nginx, traefik, ...).
+#
+# Ingress routes external HTTP traffic (by hostname) to Services.
+# Flow:  browser → Ingress controller → this rule → Service (06) → pods
+#
+# Without an Ingress controller you can still test everything with:
+#   kubectl port-forward -n url-shortener svc/url-shortener-api 8080:80
+# and open http://localhost:8080
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: url-shortener
+  namespace: url-shortener
+  annotations:
+    # Adjust to your ingress controller (nginx shown).
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: shortener.local    # add to /etc/hosts for local testing
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: url-shortener-api
+                port:
+                  number: 80

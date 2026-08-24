@@ -1,0 +1,17 @@
+# The Service for the API.
+# Type ClusterIP: reachable inside the cluster only. External access
+# goes through an Ingress (see 07) — never by making the app a
+# LoadBalancer directly in a shared cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: url-shortener-api
+  namespace: url-shortener
+spec:
+  type: ClusterIP
+  selector:
+    app: url-shortener-api
+  ports:
+    - name: http
+      port: 80          # what other in-cluster callers dial
+      targetPort: 8080  # the container's actual port

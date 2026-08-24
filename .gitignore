@@ -1,0 +1,17 @@
+# Dependencies / build output — never commit these
+frontend/node_modules/
+frontend/dist/
+
+# Go test artifacts
+backend/coverage.out
+backend/*.test
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+
+# Local secrets — NEVER commit real credentials
+k8s/*-secret.yaml
+!k8s/*.example.yaml
+.env

@@ -1,0 +1,19 @@
+# ConfigMap = non-secret configuration, injected as env vars.
+# Rule of thumb: would this value be dangerous in a git repo or a log?
+#   No  → ConfigMap  (hosts, ports, feature flags, log level)
+#   Yes → Secret     (passwords, tokens, keys)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: url-shortener-api
+  namespace: url-shortener
+data:
+  PORT: "8080"
+  POSTGRES_HOST: postgres      # DNS name of the Service from 02
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: shortener
+  # Public address of the app — used to build the OAuth redirect URI.
+  # ⚠️ Change this per environment to match your Ingress host, e.g.
+  # https://links.example.com — it must equal the redirect URI you
+  # registered in Google Cloud Console (…/auth/google/callback).
+  PUBLIC_BASE_URL: http://localhost:8080

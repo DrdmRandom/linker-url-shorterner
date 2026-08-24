@@ -1,0 +1,112 @@
+# =====================================================================
+# Linker — URL shortener + QR code generator
+# =====================================================================
+
+# Number of replicas when autoscaling is disabled.
+replicaCount: 1
+
+image:
+  repository: linker
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: linker.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# --------------------------------------------------
+# Probe configuration
+# The backend exposes /api/healthz (liveness) and
+# /api/readyz (readiness) — the readiness probe
+# checks the database connection.
+# --------------------------------------------------
+probes:
+  liveness:
+    initialDelaySeconds: 5
+    periodSeconds: 15
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 2
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "64Mi"
+  limits:
+    cpu: "500m"
+    memory: "128Mi"
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# --------------------------------------------------
+# App configuration
+# --------------------------------------------------
+
+# Public base URL for OAuth redirects and short links.
+publicBaseUrl: "http://localhost:8080"
+
+# Per-user link quota.
+maxLinksPerUser: 15
+
+# Session signing key — set a long random value in production.
+# If left empty, the backend falls back to "insecure-dev-secret".
+sessionSecret: "insecure-dev-secret"
+
+# PostgreSQL connection
+postgres:
+  host: "localhost"
+  port: 5432
+  database: "shortener"
+  user: "shortener"
+  password: ""
+
+# Google SSO — leave empty to disable sign-in.
+google:
+  enabled: false
+  clientId: ""
+  clientSecret: ""

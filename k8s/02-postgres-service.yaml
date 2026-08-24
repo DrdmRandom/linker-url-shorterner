@@ -1,0 +1,18 @@
+# A Service gives Postgres a stable DNS name inside the cluster:
+#   postgres.url-shortener.svc.cluster.local
+# The API reaches it simply as "postgres" (same namespace).
+# ClusterIP = reachable only from inside the cluster (correct for a DB;
+# databases should never be exposed publicly).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: url-shortener
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

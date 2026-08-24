@@ -1,0 +1,6 @@
+apiVersion: v2
+name: linker
+description: A URL shortener + QR code generator — learning project, production-ready
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
