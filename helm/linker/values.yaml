@@ -6,8 +6,8 @@
 replicaCount: 1
 
 image:
-  repository: linker
-  tag: ""
+  repository: 192.168.100.42:3001/linker
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -48,9 +48,6 @@ ingress:
 
 # --------------------------------------------------
 # Probe configuration
-# The backend exposes /api/healthz (liveness) and
-# /api/readyz (readiness) — the readiness probe
-# checks the database connection.
 # --------------------------------------------------
 probes:
   liveness:
@@ -88,25 +85,25 @@ affinity: {}
 # --------------------------------------------------
 
 # Public base URL for OAuth redirects and short links.
-publicBaseUrl: "http://localhost:8080"
+# Change this to your domain or IP once you know how you'll access it.
+publicBaseUrl: "http://192.168.100.42:8080"
 
 # Per-user link quota.
 maxLinksPerUser: 15
 
-# Session signing key — set a long random value in production.
-# If left empty, the backend falls back to "insecure-dev-secret".
-sessionSecret: "insecure-dev-secret"
+# Session signing key — generated with openssl rand -base64 32
+sessionSecret: "e7j25a4jg2mJYdVYQFRBs8xoVTJ3iZ9CgrBkKhILhs0="
 
-# PostgreSQL connection
+# PostgreSQL connection — Docker Postgres on the host
 postgres:
-  host: "localhost"
-  port: 5432
-  database: "shortener"
-  user: "shortener"
-  password: ""
+  host: "192.168.100.42"
+  port: 3004
+  database: "linker-db"
+  user: "linker"
+  password: "M9d6r3d12"
 
-# Google SSO — leave empty to disable sign-in.
+# Google SSO
 google:
-  enabled: false
-  clientId: ""
-  clientSecret: ""
+  enabled: true
+  clientId: ""   # TODO: fill in your Google OAuth client ID
+  clientSecret: ""   # TODO: fill in your Google OAuth client secret
