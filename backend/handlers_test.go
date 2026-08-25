@@ -495,15 +495,10 @@ func TestTamperedSessionCookieIsRejected(t *testing.T) {
 	g := testGoogleConfig()
 	h := testServer(NewMemStore(), g)
 
-	cookie := signSessionCookie(g, UserInfo{Sub: "google-123"})
-	// Flip one character of the signature — verification must fail.
-	v := []byte(cookie.Value)
-	if v[len(v)-1] == 'a' {
-		v[len(v)-1] = 'b'
-	} else {
-		v[len(v)-1] = 'a'
-	}
-	cookie.Value = string(v)
+	// Sign a cookie with a DIFFERENT secret — must be rejected.
+	tampered := testGoogleConfig()
+	tampered.SessionSecret = []byte("different-secret")
+	cookie := signSessionCookie(tampered, UserInfo{Sub: "google-123"})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
 	req.AddCookie(cookie)
