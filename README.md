@@ -202,3 +202,12 @@ kubectl delete namespace url-shortener          # everything in-cluster
 2. **FluxCD**: deploy from a Git repo instead of `kubectl apply`
 3. **Image automation**: Flux updates the image tag when CI pushes
 4. **HPA**: autoscale the API on CPU
+
+
+---
+
+#### Testing CI PR number 1
+
+#### Testing CI Commit main Number 0
+
+---
